@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Qvest</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+  background: #1c1c1e; height: 100dvh;
+  display: flex; flex-direction: column;
+  overflow: hidden; color: #fff;
+}
+#top-bar {
+  background: #2c2c2e; border-bottom: 0.5px solid #3a3a3c;
+  padding: 12px 14px; display: flex;
+  align-items: center; justify-content: space-between; flex-shrink: 0;
+}
+#top-bar h1 { font-size: 18px; font-weight: 800; letter-spacing: -0.3px; }
+#top-bar h1 span { color: #0a84ff; }
+#top-right { display: flex; align-items: center; gap: 8px; }
+#view-toggle { display: flex; background: #3a3a3c; border-radius: 8px; padding: 2px; gap: 2px; }
+.vbtn { background: transparent; border: none; color: #8e8e93; font-size: 14px; cursor: pointer; padding: 4px 8px; border-radius: 6px; }
+.vbtn.active { background: #636366; color: #fff; }
+#api-status { font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 20px; background: #3a2f00; color: #ffd60a; cursor: pointer; }
+#api-status.active { background: #0d3320; color: #30d158; }
+#counter { font-size: 13px; color: #8e8e93; background: #3a3a3c; padding: 4px 10px; border-radius: 20px; }
+
+#question-panel {
+  flex: 1; overflow-y: auto; background: #1c1c1e;
+  display: flex; align-items: center; justify-content: center;
+  padding: 16px; position: relative; min-height: 0;
+}
+#question-img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 12px; display: none; background: #fff; }
+#placeholder { text-align: center; color: #8e8e93; }
+#placeholder .icon { font-size: 52px; margin-bottom: 16px; }
+#placeholder p { font-size: 15px; margin-bottom: 24px; color: #636366; }
+#load-btn-main { background: #0a84ff; color: #fff; border: none; border-radius: 14px; padding: 14px 28px; font-size: 16px; font-weight: 600; cursor: pointer; }
+#question-nav { display: none; position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); gap: 12px; align-items: center; background: rgba(44,44,46,0.9); padding: 6px 12px; border-radius: 20px; }
+.nav-btn { background: #3a3a3c; border: none; border-radius: 8px; width: 34px; height: 34px; font-size: 18px; cursor: pointer; color: #fff; }
+#nav-label { font-size: 13px; color: #aeaeb2; min-width: 48px; text-align: center; }
+
+#divider { height: 5px; background: #3a3a3c; position: relative; cursor: row-resize; flex-shrink: 0; }
+#divider::after { content: ''; position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); width: 40px; height: 4px; background: #636366; border-radius: 2px; }
+
+#solution-panel { height: 260px; background: #2c2c2e; display: flex; flex-direction: column; flex-shrink: 0; min-height: 60px; }
+#solution-inner { flex: 1; overflow-y: auto; padding: 12px 16px; }
+
+#answer-area { background: #1c1c1e; border-radius: 12px; padding: 12px; margin-bottom: 10px; border: 0.5px solid #3a3a3c; }
+#answer-label { font-size: 11px; font-weight: 600; color: #8e8e93; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 8px; }
+#answer-row { display: flex; gap: 8px; align-items: flex-start; }
+#answer-input { flex: 1; background: #2c2c2e; color: #e5e5ea; border: 0.5px solid #48484a; border-radius: 10px; padding: 10px 12px; font-size: 14px; font-family: -apple-system, sans-serif; resize: none; height: 40px; line-height: 1.4; outline: none; }
+#answer-cam-btn { background: #3a3a3c; border: none; border-radius: 10px; width: 40px; height: 40px; font-size: 18px; cursor: pointer; flex-shrink: 0; }
+#answer-img-preview { margin-top: 8px; display: none; position: relative; }
+#answer-img-preview img { width: 60px; height: 60px; object-fit: cover; border-radius: 8px; }
+#remove-img-btn { position: absolute; top: -6px; left: 52px; background: #ff453a; border: none; border-radius: 50%; width: 18px; height: 18px; color: #fff; font-size: 11px; cursor: pointer; }
+
+#clue-box { background: #3a2f00; border: 1px solid #634f00; border-radius: 12px; padding: 12px 14px; margin-bottom: 8px; display: none; }
+.clue-label { font-size: 11px; font-weight: 600; color: #ffd60a; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 6px; }
+#clue-text { font-size: 14px; color: #ffe066; line-height: 1.6; }
+
+#eval-card { border-radius: 12px; padding: 12px 14px; margin-bottom: 8px; display: none; }
+#eval-card.correct { background: #0d3320; border-left: 3px solid #30d158; }
+#eval-card.partial { background: #2d1f00; border-left: 3px solid #ff9f0a; }
+#eval-card.incorrect { background: #1e1010; border-left: 3px solid #ff453a; }
+#eval-card.info { background: #1c1c2e; border-left: 3px solid #5e5ce6; }
+.eval-status-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 6px; }
+#eval-card.correct .eval-status-label { color: #30d158; }
+#eval-card.partial .eval-status-label { color: #ff9f0a; }
+#eval-card.incorrect .eval-status-label { color: #ff453a; }
+#eval-card.info .eval-status-label { color: #5e5ce6; }
+#eval-text { font-size: 14px; color: #e5e5ea; line-height: 1.6; }
+
+#assumptions-card { background: #1c1c2e; border-left: 3px solid #5e5ce6; border-radius: 12px; padding: 12px 14px; margin-bottom: 8px; display: none; }
+.sec-label { font-size: 11px; font-weight: 600; color: #5e5ce6; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+#assumptions-text { font-size: 13px; color: #c7c7ff; line-height: 1.8; }
+
+#steps-container { display: flex; flex-direction: column; gap: 8px; }
+.step-card { background: #2c2c2e; border-radius: 12px; padding: 12px 14px; display: none; border-left: 3px solid #0a84ff; }
+.step-label { font-size: 11px; font-weight: 600; color: #0a84ff; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+.step-text { font-size: 14px; color: #e5e5ea; line-height: 1.8; }
+.step-text strong { color: #fff; }
+
+#final-card { background: #0d3320; border-radius: 12px; padding: 12px 14px; display: none; border-left: 3px solid #30d158; margin-top: 4px; }
+.final-label { font-size: 11px; font-weight: 600; color: #30d158; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+#final-text { font-size: 15px; font-weight: 600; color: #afffcf; line-height: 1.5; }
+
+#confirm-bar { display: none; padding: 8px 0 2px; }
+#confirm-bar button { width: 100%; background: #30d158; color: #fff; border: none; border-radius: 12px; padding: 12px; font-size: 15px; font-weight: 600; cursor: pointer; }
+#export-bar { display: none; padding: 4px 0 2px; }
+#export-bar button { width: 100%; background: #ff9f0a; color: #fff; border: none; border-radius: 12px; padding: 12px; font-size: 14px; font-weight: 600; cursor: pointer; }
+
+#no-solution { color: #636366; font-size: 14px; text-align: center; padding: 20px 12px; line-height: 1.6; }
+#loading-box { display: none; text-align: center; padding: 20px; }
+.spinner { width: 28px; height: 28px; border: 3px solid #3a3a3c; border-top-color: #0a84ff; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 10px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+#loading-box p { font-size: 14px; color: #8e8e93; }
+
+#bottom-bar { background: #2c2c2e; border-top: 0.5px solid #3a3a3c; padding: 8px 8px; padding-bottom: max(8px, env(safe-area-inset-bottom)); display: flex; gap: 5px; flex-shrink: 0; }
+.btn { flex: 1; border: 0.5px solid #3a3a3c; background: #3a3a3c; border-radius: 12px; padding: 9px 2px; font-size: 11px; font-weight: 500; color: #e5e5ea; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.btn:active { opacity: 0.7; }
+.btn .ico { font-size: 19px; }
+.btn.green { background: #1a4d2e; border-color: #30d158; color: #30d158; }
+.btn.purple { background: #2d1b6e; border-color: #5e17eb; color: #bf9fff; }
+.btn.red { color: #ff453a; }
+.btn:disabled { opacity: 0.3; pointer-events: none; }
+
+#prompt-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.65); z-index: 100; align-items: flex-end; }
+#prompt-overlay.open { display: flex; }
+#prompt-sheet { background: #2c2c2e; border-radius: 20px 20px 0 0; width: 100%; padding: 20px 16px; padding-bottom: max(20px, env(safe-area-inset-bottom)); }
+#prompt-sheet h2 { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
+#prompt-sheet p { font-size: 13px; color: #8e8e93; margin-bottom: 12px; }
+#prompt-ta { width: 100%; height: 180px; background: #1c1c1e; color: #e5e5ea; border: 0.5px solid #48484a; border-radius: 12px; padding: 12px; font-size: 13px; font-family: -apple-system, sans-serif; line-height: 1.5; resize: none; outline: none; }
+#prompt-btns { display: flex; gap: 8px; margin-top: 10px; }
+.sbtn { flex: 1; border: none; border-radius: 12px; padding: 13px; font-size: 15px; font-weight: 600; cursor: pointer; }
+.sbtn.cancel { background: #3a3a3c; color: #e5e5ea; }
+.sbtn.done { background: #0a84ff; color: #fff; }
+.sbtn.reset { background: #3a3a3c; color: #ff9f0a; flex: 0.4; font-size: 12px; }
+
+input[type=file] { display: none; }
+</style>
+</head>
+<body>
+
+<div id="top-bar">
+  <h1>Q<span>vest</span></h1>
+  <div id="top-right">
+    <div id="view-toggle">
+      <button class="vbtn active" onclick="setView('question')" title="Question only">⬆</button>
+      <button class="vbtn" onclick="setView('split')" title="Split">⬛</button>
+      <button class="vbtn" onclick="setView('solution')" title="Solution only">⬇</button>
+    </div>
+    <span id="api-status" onclick="document.getElementById('key-file').click()">⚡ No Key</span>
+    <span id="filename" style="font-size:12px;color:#636366;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span><span id="counter">No questions</span>
+  </div>
+</div>
+
+<div id="question-panel">
+  <div id="placeholder">
+    <div class="icon">📂</div>
+    <p>Load your question images to start</p>
+    <button id="load-btn-main" onclick="document.getElementById('q-file').click()">Load Questions</button>
+  </div>
+  <img id="question-img" alt="Question">
+  <div id="question-nav">
+    <button class="nav-btn" onclick="prevQ()">‹</button>
+    <span id="nav-label">1 / 1</span>
+    <button class="nav-btn" onclick="nextQ()">›</button>
+  </div>
+</div>
+
+<div id="divider"></div>
+
+<div id="solution-panel">
+  <div id="solution-inner">
+
+    <div id="loading-box">
+      <div class="spinner"></div>
+      <p id="loading-msg">Claude is thinking...</p>
+    </div>
+
+    <div id="answer-area">
+      <div id="answer-label">Your Answer</div>
+      <div id="answer-row">
+        <textarea id="answer-input" placeholder="Type your answer or approach..."></textarea>
+        <button id="answer-cam-btn" onclick="document.getElementById('cam-file').click()">📷</button>
+      </div>
+      <div id="answer-img-preview">
+        <img id="answer-thumb" alt="your work">
+        <button id="remove-img-btn" onclick="removeAnswerImg()">✕</button>
+      </div>
+    </div>
+
+    <div id="clue-box">
+      <div class="clue-label">💡 Clue</div>
+      <div id="clue-text"></div>
+    </div>
+
+    <div id="eval-card">
+      <div class="eval-status-label" id="eval-label"></div>
+      <div id="eval-text"></div>
+    </div>
+
+    <div id="assumptions-card">
+      <div class="sec-label">Assumptions & References</div>
+      <div id="assumptions-text"></div>
+    </div>
+
+    <div id="steps-container"></div>
+
+    <div id="final-card">
+      <div class="final-label">Final Answer</div>
+      <div id="final-text"></div>
+    </div>
+
+    <div id="confirm-bar">
+      <button onclick="confirmCorrect()">✅ I got it — this is correct!</button>
+    </div>
+
+    <div id="export-bar">
+      <button onclick="doExport()">📄 Export as PDF</button>
+    </div>
+
+    <p id="no-solution">Write your answer above then tap Check,<br>or tap Solve to get full solution</p>
+
+  </div>
+</div>
+
+<div id="bottom-bar">
+  <input type="file" id="q-file" multiple accept="image/*" onchange="loadQuestions(event)">
+  <input type="file" id="key-file" accept=".txt" onchange="loadKey(event)">
+  <input type="file" id="cam-file" accept="image/*" onchange="loadAnswerImg(event)">
+
+  <button class="btn" onclick="document.getElementById('q-file').click()">
+    <span class="ico">📂</span><span>Load</span>
+  </button>
+  <button class="btn" onclick="randomQ()">
+    <span class="ico">🎲</span><span>Random</span>
+  </button>
+  <button class="btn" id="btn-clue" onclick="doClue()" disabled>
+    <span class="ico">💡</span><span>Clue</span>
+  </button>
+  <button class="btn green" id="btn-check" onclick="doCheck()" disabled>
+    <span class="ico">✅</span><span>Check</span>
+  </button>
+  <button class="btn purple" id="btn-solve" onclick="doSolve()" disabled>
+    <span class="ico">🤖</span><span>Solve</span>
+  </button>
+  <button class="btn" id="btn-prompt" onclick="openPrompt()">
+    <span class="ico">✏️</span><span>Prompt</span>
+  </button>
+  <button class="btn red" onclick="doReset()">
+    <span class="ico">↺</span><span>Reset</span>
+  </button>
+</div>
+
+<div id="prompt-overlay" onclick="overlayClick(event)">
+  <div id="prompt-sheet">
+    <h2>Customize Prompt</h2>
+    <p>Sent to Claude with the question image and your answer.</p>
+    <textarea id="prompt-ta"></textarea>
+    <div id="prompt-btns">
+      <button class="sbtn reset" onclick="resetPrompt()">Reset</button>
+      <button class="sbtn cancel" onclick="closePrompt()">Cancel</button>
+      <button class="sbtn done" onclick="savePrompt()">Done</button>
+    </div>
+  </div>
+</div>
+
+<script>
+var questions = [];
+var currentIdx = -1;
+var apiKey = null;
+var aiData = null;
+var revealedSteps = 0;
+var answerImgB64 = null;
+var answerImgType = null;
+var customPrompt = null;
+
+var DEFAULT_PROMPT = "You are a strict actuarial exam tutor and solution verifier.\n\nYou will receive an exam question image and possibly a student's answer.\n\nRespond in EXACTLY this structured format:\n\nEVALUATION: [CORRECT / PARTIALLY CORRECT / INCORRECT / NO ANSWER PROVIDED]\n[2-3 sentences evaluating the student's approach. If wrong, say exactly where it breaks down.]\n\nASSUMPTIONS:\n[List every assumption and theorem. Format: bullet point, name, justification]\n\nSTEP 1: [Step name]\n[General formula first. Then substitute values. Show every arithmetic step.]\n\nSTEP 2: [Step name]\n[Same format]\n\nSTEP 3: [Step name or DONE]\n[...]\n\nSTEP 4: [Step name or DONE]\n[...]\n\nSTEP 5: [Step name or DONE]\n[...]\n\nFINAL ANSWER: [Clear answer with units]\n\nRULES: Never skip steps. Always write the general formula before substituting. Name every theorem used.";
+
+var SOLVE_PROMPT = "You are a strict actuarial exam tutor. Solve this exam question completely.\n\nRespond in EXACTLY this structured format:\n\nEVALUATION: NO ANSWER PROVIDED\n[State the problem type and approach needed.]\n\nASSUMPTIONS:\n[List every assumption and theorem needed. Format: bullet point, name, justification]\n\nSTEP 1: [Step name]\n[General formula first, then substitution, then arithmetic]\n\nSTEP 2: [Step name]\n[Same format]\n\nSTEP 3: [Step name or DONE]\n[...]\n\nSTEP 4: [Step name or DONE]\n[...]\n\nSTEP 5: [Step name or DONE]\n[...]\n\nFINAL ANSWER: [Clear answer]\n\nRULES: Never skip steps. Always write general formula before values. Name every theorem.";
+
+function md(text) {
+  if (!text) return '';
+  return text
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/`(.+?)`/g, '<code style="background:#1c1c1e;padding:1px 5px;border-radius:4px;">$1</code>')
+    .replace(/^---+$/gm, '<hr style="border:none;border-top:0.5px solid #3a3a3c;margin:8px 0;">')
+    .replace(/^#{1,3} (.+)$/gm, '<div style="font-size:11px;font-weight:700;color:#8e8e93;text-transform:uppercase;letter-spacing:0.8px;margin:10px 0 4px;">$1</div>')
+    .replace(/^• /gm, '<span style="color:#0a84ff;font-weight:700;">•</span> ')
+    .replace(/^- /gm, '<span style="color:#0a84ff;font-weight:700;">•</span> ')
+    .replace(/\n/g, '<br>');
+}
+
+function loadQuestions(e) {
+  var files = Array.from(e.target.files).filter(function(f) { return f.type.startsWith('image/'); });
+  if (!files.length) return;
+  questions = files.sort(function(a,b){ return a.name.localeCompare(b.name); });
+  document.getElementById('placeholder').style.display = 'none';
+  document.getElementById('question-nav').style.display = 'flex';
+  showQ(0);
+}
+
+function loadKey(e) {
+  var file = e.target.files[0];
+  if (!file) return;
+  var r = new FileReader();
+  r.onload = function(ev) {
+    var key = ev.target.result.trim();
+    if (key.startsWith('sk-')) {
+      apiKey = key;
+      document.getElementById('api-status').textContent = '✓ Ready';
+      document.getElementById('api-status').classList.add('active');
+      enableAIButtons();
+    } else {
+      alert('Invalid key — must start with sk-ant-...');
+    }
+  };
+  r.readAsText(file);
+}
+
+function loadAnswerImg(e) {
+  var file = e.target.files[0];
+  if (!file) return;
+  var r = new FileReader();
+  r.onload = function(ev) {
+    answerImgB64 = ev.target.result.split(',')[1];
+    answerImgType = file.type;
+    document.getElementById('answer-thumb').src = ev.target.result;
+    document.getElementById('answer-img-preview').style.display = 'block';
+  };
+  r.readAsDataURL(file);
+}
+
+function removeAnswerImg() {
+  answerImgB64 = null;
+  answerImgType = null;
+  document.getElementById('answer-img-preview').style.display = 'none';
+  document.getElementById('cam-file').value = '';
+}
+
+function showQ(idx) {
+  if (!questions.length) return;
+  currentIdx = idx;
+  doReset();
+  var fname = questions[idx].name.replace(/\.[^.]+$/, '');
+  document.getElementById('filename').textContent = fname;
+  var r = new FileReader();
+  r.onload = function(ev) {
+    var img = document.getElementById('question-img');
+    img.src = ev.target.result;
+    img.style.display = 'block';
+  };
+  r.readAsDataURL(questions[idx]);
+  updateCounter();
+  if (apiKey) enableAIButtons();
+  document.getElementById('btn-clue').disabled = !apiKey || !questions.length;
+}
+
+function updateCounter() {
+  var t = questions.length ? (currentIdx+1) + ' / ' + questions.length : 'No questions';
+  document.getElementById('counter').textContent = t;
+  document.getElementById('nav-label').textContent = t;
+}
+
+function enableAIButtons() {
+  if (!questions.length || !apiKey) return;
+  document.getElementById('btn-check').disabled = false;
+  document.getElementById('btn-solve').disabled = false;
+  document.getElementById('btn-clue').disabled = false;
+}
+
+function nextQ() { if (questions.length) showQ((currentIdx+1) % questions.length); }
+function prevQ() { if (questions.length) showQ((currentIdx-1+questions.length) % questions.length); }
+function randomQ() {
+  if (!questions.length) return;
+  var idx;
+  do { idx = Math.floor(Math.random() * questions.length); } while (questions.length > 1 && idx === currentIdx);
+  showQ(idx);
+}
+
+function doReset() {
+  revealedSteps = 0;
+  aiData = null;
+  answerImgB64 = null;
+  answerImgType = null;
+  document.getElementById('answer-input').value = '';
+  document.getElementById('answer-img-preview').style.display = 'none';
+  document.getElementById('cam-file').value = '';
+  document.getElementById('clue-box').style.display = 'none';
+  document.getElementById('eval-card').style.display = 'none';
+  document.getElementById('assumptions-card').style.display = 'none';
+  document.getElementById('steps-container').innerHTML = '';
+  document.getElementById('final-card').style.display = 'none';
+  document.getElementById('confirm-bar').style.display = 'none';
+  document.getElementById('export-bar').style.display = 'none';
+  document.getElementById('loading-box').style.display = 'none';
+  document.getElementById('no-solution').style.display = 'block';
+}
+
+function setAllDisabled(d) {
+  ['btn-clue','btn-check','btn-solve','btn-prompt'].forEach(function(id) {
+    document.getElementById(id).disabled = d || !apiKey || !questions.length;
+  });
+}
+
+async function doClue() {
+  if (!apiKey || !questions.length) return;
+  setAllDisabled(true);
+  document.getElementById('clue-box').style.display = 'block';
+  document.getElementById('clue-text').innerHTML = '...';
+  document.getElementById('no-solution').style.display = 'none';
+  try {
+    var b64 = await readFileAsB64(questions[currentIdx]);
+    var res = await callAPI([
+      {type:'image', source:{type:'base64', media_type: questions[currentIdx].type||'image/png', data:b64}},
+      {type:'text', text:'Give ONE single hint for this actuarial exam question. Do NOT reveal the answer or any calculation. Just point to the relevant concept, distribution, or formula family. Maximum 2 sentences. No preamble.'}
+    ], 200);
+    document.getElementById('clue-text').innerHTML = md(res);
+  } catch(err) {
+    document.getElementById('clue-text').textContent = 'Error: ' + err.message;
+  }
+  setAllDisabled(false);
+}
+
+async function doCheck() {
+  var userText = document.getElementById('answer-input').value.trim();
+  if (!userText && !answerImgB64) {
+    var ns = document.getElementById('no-solution');
+    ns.style.display = 'block';
+    ns.style.color = '#ff453a';
+    ns.textContent = '⚠️ Write your answer or attach a photo first, then tap Check';
+    return;
+  }
+  await runClaude(customPrompt || DEFAULT_PROMPT, userText, true);
+}
+
+async function doSolve() {
+  await runClaude(SOLVE_PROMPT, '', false);
+}
+
+async function runClaude(prompt, userText, hasAnswer) {
+  if (!apiKey || !questions.length) return;
+  setAllDisabled(true);
+  document.getElementById('no-solution').style.display = 'none';
+  document.getElementById('loading-box').style.display = 'block';
+  document.getElementById('loading-msg').textContent = 'Claude is analyzing...';
+  document.getElementById('clue-box').style.display = 'none';
+  document.getElementById('eval-card').style.display = 'none';
+  document.getElementById('assumptions-card').style.display = 'none';
+  document.getElementById('steps-container').innerHTML = '';
+  document.getElementById('final-card').style.display = 'none';
+  document.getElementById('confirm-bar').style.display = 'none';
+  document.getElementById('export-bar').style.display = 'none';
+  revealedSteps = 0;
+
+  try {
+    var b64 = await readFileAsB64(questions[currentIdx]);
+    var content = [{type:'image', source:{type:'base64', media_type: questions[currentIdx].type||'image/png', data:b64}}];
+
+    if (answerImgB64) {
+      content.push({type:'image', source:{type:'base64', media_type:answerImgType, data:answerImgB64}});
+      content.push({type:'text', text: (userText ? 'Student wrote: "' + userText + '"\n\nStudent also provided handwritten work in the second image.\n\n' : 'Student provided handwritten work in the second image.\n\n') + prompt});
+    } else if (userText) {
+      content.push({type:'text', text: 'Student answer: "' + userText + '"\n\n' + prompt});
+    } else {
+      content.push({type:'text', text: prompt});
+    }
+
+    var responseText = await callAPI(content, 1500);
+    aiData = parseResponse(responseText);
+    document.getElementById('loading-box').style.display = 'none';
+    renderResults();
+  } catch(err) {
+    document.getElementById('loading-box').style.display = 'none';
+    document.getElementById('no-solution').textContent = '⚠️ ' + err.message;
+    document.getElementById('no-solution').style.display = 'block';
+  }
+  setAllDisabled(false);
+}
+
+function readFileAsB64(file) {
+  return new Promise(function(resolve, reject) {
+    var r = new FileReader();
+    r.onload = function(e) { resolve(e.target.result.split(',')[1]); };
+    r.onerror = reject;
+    r.readAsDataURL(file);
+  });
+}
+
+async function callAPI(content, maxTokens) {
+  var res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    },
+    body: JSON.stringify({model:'claude-sonnet-4-20250514', max_tokens:maxTokens, messages:[{role:'user',content:content}]})
+  });
+  var data = await res.json();
+  if (data.error) throw new Error(data.error.type + ': ' + data.error.message);
+  if (!data.content || !data.content[0]) throw new Error('Empty response from API');
+  return data.content[0].text;
+}
+
+function parseResponse(text) {
+  var result = {evalStatus:'', evalText:'', assumptions:'', steps:[], finalAnswer:''};
+  var evalMatch = text.match(/EVALUATION:\s*(CORRECT|PARTIALLY CORRECT|INCORRECT|NO ANSWER PROVIDED)\s*\n([\s\S]*?)(?=\nASSUMPTIONS:|\nSTEP\s*1:|$)/i);
+  if (evalMatch) { result.evalStatus = evalMatch[1].trim().toUpperCase(); result.evalText = evalMatch[2].trim(); }
+  var assumpMatch = text.match(/ASSUMPTIONS:\s*\n([\s\S]*?)(?=\nSTEP\s*1:|$)/i);
+  if (assumpMatch) result.assumptions = assumpMatch[1].trim();
+  var stepMatches = [...text.matchAll(/STEP\s*(\d+):\s*([^\n]+)\n([\s\S]*?)(?=\nSTEP\s*\d+:|\nFINAL ANSWER:|$)/gi)];
+  stepMatches.forEach(function(m) {
+    var body = m[3].trim();
+    if (body && body.toUpperCase() !== 'DONE') result.steps.push({label:'Step ' + m[1] + ' — ' + m[2].trim(), text:body});
+  });
+  var ansMatch = text.match(/FINAL ANSWER:\s*([\s\S]+?)$/i);
+  if (ansMatch) result.finalAnswer = ansMatch[1].trim();
+  return result;
+}
+
+function renderResults() {
+  if (!aiData) return;
+  var evalCard = document.getElementById('eval-card');
+  var statusMap = {'CORRECT':'correct','PARTIALLY CORRECT':'partial','INCORRECT':'incorrect','NO ANSWER PROVIDED':'info'};
+  var iconMap = {'CORRECT':'✅ Correct','PARTIALLY CORRECT':'⚠️ Partially Correct','INCORRECT':'❌ Incorrect','NO ANSWER PROVIDED':'📋 Solution'};
+  evalCard.className = statusMap[aiData.evalStatus] || 'info';
+  document.getElementById('eval-label').textContent = iconMap[aiData.evalStatus] || aiData.evalStatus;
+  document.getElementById('eval-text').innerHTML = md(aiData.evalText);
+  evalCard.style.display = 'block';
+
+  if (aiData.assumptions) {
+    document.getElementById('assumptions-text').innerHTML = md(aiData.assumptions);
+    document.getElementById('assumptions-card').style.display = 'block';
+  }
+
+  var container = document.getElementById('steps-container');
+  container.innerHTML = '';
+  aiData.steps.forEach(function(step, i) {
+    var card = document.createElement('div');
+    card.className = 'step-card';
+    card.id = 'step-' + i;
+    card.innerHTML = '<div class="step-label">' + step.label + '</div><div class="step-text">' + md(step.text) + '</div>';
+    container.appendChild(card);
+  });
+
+  if (aiData.steps.length > 0) {
+    document.getElementById('step-0').style.display = 'block';
+    revealedSteps = 1;
+  } else if (aiData.finalAnswer) {
+    document.getElementById('final-text').innerHTML = md(aiData.finalAnswer);
+    document.getElementById('final-card').style.display = 'block';
+    document.getElementById('confirm-bar').style.display = 'block';
+  }
+}
+
+function revealNext() {
+  if (!aiData) return;
+  var steps = document.querySelectorAll('.step-card');
+  if (revealedSteps < steps.length) {
+    steps[revealedSteps].style.display = 'block';
+    revealedSteps++;
+    if (revealedSteps === steps.length) {
+      if (aiData.finalAnswer) {
+        document.getElementById('final-text').innerHTML = md(aiData.finalAnswer);
+        document.getElementById('final-card').style.display = 'block';
+      }
+      document.getElementById('confirm-bar').style.display = 'block';
+    }
+    document.getElementById('solution-inner').scrollTop = 9999;
+  } else if (revealedSteps >= steps.length && steps.length > 0) {
+    // Already fully revealed - show confirm if not shown
+    document.getElementById('confirm-bar').style.display = 'block';
+    document.getElementById('solution-inner').scrollTop = 9999;
+  }
+}
+
+document.getElementById('solution-inner').addEventListener('click', function(e) {
+  if (e.target.closest('#answer-area') || e.target.closest('#confirm-bar') || e.target.closest('#export-bar') || e.target.closest('#clue-box')) return;
+  revealNext();
+});
+
+function confirmCorrect() {
+  document.getElementById('confirm-bar').style.display = 'none';
+  document.getElementById('export-bar').style.display = 'block';
+  document.getElementById('solution-inner').scrollTop = 9999;
+}
+
+async function doExport() {
+  if (!aiData) return;
+  var btn = document.querySelector('#export-bar button');
+  btn.textContent = '⏳ Fetching knowledge keys...';
+  btn.disabled = true;
+
+  var keywords = '';
+  try {
+    var solutionText = [aiData.evalText, aiData.assumptions, aiData.steps.map(function(s){ return s.label + ': ' + s.text; }).join('\n'), aiData.finalAnswer].join('\n\n');
+    var kwText = await callAPI([{type:'text', text:'Based on this actuarial exam solution, list the exact knowledge areas, theorems, formulas, and concepts a student MUST know to solve this question.\n\nFormat: one bullet per line starting with •\nBe specific (not "probability" but "Poisson MGF" or "Panjer (a,b,0) recursion")\nMax 10 items. No preamble.\n\nSolution:\n' + solutionText}], 300);
+    keywords = kwText.trim();
+  } catch(e) {
+    keywords = '• Could not fetch keywords';
+  }
+
+  var qName = questions[currentIdx] ? questions[currentIdx].name.replace(/\.[^.]+$/, '') : 'Question';
+  var exportName = qName + '_SOLVED';
+  var qImgSrc = document.getElementById('question-img').src;
+  var clueHtml = document.getElementById('clue-text').innerHTML || '';
+  var userAnswer = document.getElementById('answer-input').value.trim();
+
+  var evalColor = aiData.evalStatus === 'CORRECT' ? '#30d158' : aiData.evalStatus === 'PARTIALLY CORRECT' ? '#ff9f0a' : '#6e6e73';
+  var evalBg = aiData.evalStatus === 'CORRECT' ? '#f0fff5' : aiData.evalStatus === 'PARTIALLY CORRECT' ? '#fff8f0' : '#f5f5f7';
+  var iconLabel = aiData.evalStatus === 'CORRECT' ? '✅ Correct' : aiData.evalStatus === 'PARTIALLY CORRECT' ? '⚠️ Partially Correct' : aiData.evalStatus === 'INCORRECT' ? '❌ Incorrect' : '📋 Solution';
+
+  var stepsHtml = aiData.steps.map(function(s, i) {
+    return '<div style="margin-bottom:12px;padding:12px 14px;border-left:3px solid #0a84ff;background:#f5f8ff;border-radius:6px;">' +
+      '<div style="font-size:10px;font-weight:700;color:#0a84ff;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:6px;">' + s.label + '</div>' +
+      '<div style="font-size:13px;line-height:1.7;color:#1c1c1e;">' + s.text + '</div></div>';
+  }).join('');
+
+  var kwHtml = keywords.split('\n').filter(function(l){ return l.trim(); }).map(function(l) {
+    return '<div style="padding:7px 0;border-bottom:0.5px solid #e8e8e8;font-size:13px;color:#1c1c1e;line-height:1.5;">' +
+      l.trim().replace(/^•\s*/, '<span style="color:#0a84ff;font-weight:700;margin-right:8px;">•</span>') + '</div>';
+  }).join('');
+
+  var html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>' + exportName + '</title>' +
+    '<style>*{box-sizing:border-box;}body{font-family:-apple-system,Arial,sans-serif;max-width:760px;margin:0 auto;padding:40px 32px;color:#1c1c1e;background:#fff;}' +
+    '@media print{.no-print{display:none!important;}section{page-break-inside:avoid;}}' +
+    '.header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:28px;padding-bottom:16px;border-bottom:2px solid #1c1c1e;}' +
+    'h1{font-size:24px;font-weight:800;margin:0 0 4px;letter-spacing:-0.5px;}h1 span{color:#0a84ff;}' +
+    '.badge{background:#30d158;color:#fff;font-size:12px;font-weight:700;padding:6px 14px;border-radius:20px;}' +
+    '.slabel{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:#8e8e93;margin:24px 0 8px;}' +
+    'img.qimg{width:100%;border-radius:8px;border:1px solid #e0e0e0;}' +
+    '.clue-box{background:#fffbea;border-left:4px solid #ffd60a;padding:12px 16px;border-radius:6px;font-size:13px;color:#533f03;line-height:1.7;}' +
+    '.ans-box{background:#f5f5f7;border-left:4px solid #8e8e93;padding:12px 16px;border-radius:6px;font-size:13px;color:#1c1c1e;line-height:1.7;}' +
+    '.eval-box{padding:12px 16px;border-radius:8px;border-left:4px solid ' + evalColor + ';background:' + evalBg + ';}' +
+    '.eval-status{font-size:11px;font-weight:700;color:' + evalColor + ';text-transform:uppercase;letter-spacing:0.8px;margin-bottom:4px;}' +
+    '.assump-box{background:#f5f5ff;border-left:3px solid #5e5ce6;padding:12px 16px;border-radius:6px;font-size:13px;color:#1c1c1e;line-height:1.9;}' +
+    '.final-box{background:#f0fff5;border-left:4px solid #30d158;padding:14px 18px;border-radius:8px;margin-top:4px;}' +
+    '.final-label{font-size:10px;font-weight:700;color:#30d158;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;}' +
+    '.final-text{font-size:16px;font-weight:700;color:#1c1c1e;}' +
+    '.kw-box{background:#f9f9f9;border:1px solid #e8e8e8;border-radius:8px;padding:12px 16px;}' +
+    '.kw-title{font-size:13px;font-weight:700;color:#1c1c1e;margin-bottom:8px;}' +
+    '.footer{margin-top:36px;padding-top:14px;border-top:1px solid #e0e0e0;display:flex;justify-content:space-between;font-size:11px;color:#8e8e93;}' +
+    '.print-btn{position:fixed;bottom:24px;right:24px;background:#0a84ff;color:#fff;border:none;border-radius:14px;padding:14px 24px;font-size:15px;font-weight:600;cursor:pointer;}' +
+    '</style></head><body>' +
+    '<div class="header"><div><h1>Q<span>vest</span></h1><p style="font-size:13px;color:#8e8e93;margin:0;">' + exportName + ' &nbsp;·&nbsp; ' + new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'}) + '</p></div><div class="badge">✓ SOLVED</div></div>' +
+    '<section><div class="slabel">Question</div><img class="qimg" src="' + qImgSrc + '"></section>' +
+    (clueHtml ? '<section><div class="slabel">Clue</div><div class="clue-box">' + clueHtml + '</div></section>' : '') +
+    (userAnswer ? '<section><div class="slabel">Your Answer</div><div class="ans-box">' + userAnswer + '</div></section>' : '') +
+    (aiData.evalText ? '<section><div class="slabel">Evaluation</div><div class="eval-box"><div class="eval-status">' + iconLabel + '</div><div style="font-size:13px;line-height:1.6;">' + aiData.evalText + '</div></div></section>' : '') +
+    (aiData.assumptions ? '<section><div class="slabel">Assumptions & References</div><div class="assump-box">' + aiData.assumptions + '</div></section>' : '') +
+    (stepsHtml ? '<section><div class="slabel">Solution Steps</div>' + stepsHtml + '</section>' : '') +
+    (aiData.finalAnswer ? '<section><div class="final-box"><div class="final-label">Final Answer</div><div class="final-text">' + aiData.finalAnswer + '</div></div></section>' : '') +
+    '<section><div class="slabel">What You Need to Know</div><div class="kw-box"><div class="kw-title">Knowledge Keys</div>' + kwHtml + '</div></section>' +
+    '<div class="footer"><span>Generated by Qvest · Actuarial Exam Practice</span><span>' + exportName + '.pdf</span></div>' +
+    '<button class="print-btn no-print" onclick="window.print()">📄 Save as PDF</button>' +
+    '</body></html>';
+
+  var blob = new Blob([html], {type:'text/html'});
+  var url = URL.createObjectURL(blob);
+  var win = window.open(url, '_blank');
+  if (!win) {
+    var a = document.createElement('a');
+    a.href = url; a.download = exportName + '.html'; a.click();
+  }
+  btn.textContent = '📄 Export as PDF';
+  btn.disabled = false;
+}
+
+// View toggle
+function setView(mode) {
+  document.querySelectorAll('.vbtn').forEach(function(b){ b.classList.remove('active'); });
+  event.target.classList.add('active');
+  var qp = document.getElementById('question-panel');
+  var div = document.getElementById('divider');
+  var sp = document.getElementById('solution-panel');
+  if (mode === 'question') {
+    qp.style.flex = '1'; qp.style.display = 'flex';
+    div.style.display = 'none'; sp.style.display = 'none';
+  } else if (mode === 'solution') {
+    qp.style.display = 'none'; div.style.display = 'none';
+    sp.style.flex = '1'; sp.style.height = 'auto'; sp.style.display = 'flex';
+  } else {
+    qp.style.flex = '1'; qp.style.display = 'flex';
+    div.style.display = 'block';
+    sp.style.display = 'flex'; sp.style.flex = ''; sp.style.height = '260px';
+  }
+}
+
+// Prompt sheet
+function openPrompt() {
+  document.getElementById('prompt-ta').value = customPrompt || DEFAULT_PROMPT;
+  document.getElementById('prompt-overlay').classList.add('open');
+  setAllDisabled(true);
+}
+function closePrompt() {
+  document.getElementById('prompt-overlay').classList.remove('open');
+  setAllDisabled(false);
+}
+function savePrompt() {
+  customPrompt = document.getElementById('prompt-ta').value.trim() || DEFAULT_PROMPT;
+  closePrompt();
+}
+function resetPrompt() { document.getElementById('prompt-ta').value = DEFAULT_PROMPT; }
+function overlayClick(e) { if (e.target === document.getElementById('prompt-overlay')) closePrompt(); }
+
+// Drag divider
+var divEl = document.getElementById('divider');
+var spEl = document.getElementById('solution-panel');
+var dragging = false, startY = 0, startH = 0;
+divEl.addEventListener('touchstart', function(e){ dragging=true; startY=e.touches[0].clientY; startH=spEl.offsetHeight; }, {passive:true});
+document.addEventListener('touchmove', function(e){ if(!dragging) return; var dy=startY-e.touches[0].clientY; spEl.style.height=Math.min(Math.max(startH+dy,60),window.innerHeight*0.75)+'px'; }, {passive:true});
+document.addEventListener('touchend', function(){ dragging=false; });
+</script>
+</body>
+</html>
